@@ -1,6 +1,6 @@
 # Tax Report
 
-[![CI/CD Pipeline](https://github.com/tsrsilva/checker/actions/workflows/ci_cd.yml/badge.svg)](https://github.com/tsrsilva/checker/actions)
+[![CI/CD Pipeline](https://github.com/tsrsilva/checker/actions/workflows/release.yml/badge.svg)](https://github.com/tsrsilva/checker/actions)
 
 A Python tool that automatically matches a list of species with the GBIF backbone taxonomy, producing nested text outputs.
 
