@@ -27,7 +27,8 @@ jobs:
           docker run --rm \
             -v ${{ github.workspace }}/data:/app/data \
             -v ${{ github.workspace }}/outputs:/app/outputs \
-            checker:test --input-file examples/minimal.txt
+            --entrypoint python \
+            checker:test -m checker --input-file examples/minimal.txt
 
   # --- JOB 2: RELEASE ---
   release:

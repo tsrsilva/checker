@@ -21,7 +21,4 @@ ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1
 
 # Run the script by default
-ENTRYPOINT ["python", "-m", "checker"]
-
-CMD []
-
+CMD ["python", "-m", "checker"]
