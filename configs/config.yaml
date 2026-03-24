@@ -1,0 +1,7 @@
+# config.yaml
+
+input:
+  data_dir: "data"
+
+output:
+  base_dir: "outputs"

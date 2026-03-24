@@ -1,0 +1,31 @@
+# Ignore Python cache and compiled files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Ignore virtual environments
+venv/
+env/
+*.venv/
+
+# Ignore data and outputs (mounted at runtime)
+data/
+outputs/
+
+# Ignore Git metadata
+.git/
+.gitignore
+
+# Ignore editor and OS files
+*.swp
+*.swo
+*.DS_Store
+*.idea/
+*.vscode/
+
+# Ignore version files
+versions/
+
+# Ignore other unnecessary files
+*.log

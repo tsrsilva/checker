@@ -1,0 +1,27 @@
+# SPDX-FileCopyrightText: 2026 Thiago S. R. Silva, Diego S. Porto
+# SPDX-License-Identifier: MIT
+
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build-and-run:
+    runs-on: ubuntu-latest
+
+    steps:
+      # Checkout repo
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      # Build Docker image
+      - name: Build Docker image
+        run: docker build -t checker:latest .
+
+      # Run Docker container
+      - name: Run tool
+        run: docker run --rm -v ${{ github.workspace }}/data:/app/data -v ${{ github.workspace }}/outputs:/app/outputs checker:latest
