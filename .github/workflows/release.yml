@@ -23,12 +23,28 @@ jobs:
 
       - name: Run Tool Test
         run: |
-          mkdir -p data/examples outputs
+          # 1. Create the host directory structure
+          mkdir -p ${{ github.workspace }}/data/examples
+          mkdir -p ${{ github.workspace }}/outputs
+
+          # 2. Create the test file with specific taxon
+          echo "Ancyloscelis_apiformis" > ${{ github.workspace }}/data/examples/minimal.txt
+          
+          # 3. Run the container
           docker run --rm \
             -v ${{ github.workspace }}/data:/app/data \
             -v ${{ github.workspace }}/outputs:/app/outputs \
             --entrypoint python \
             checker:test -m checker --input-file examples/minimal.txt
+
+          # 4. Verify the output exists
+          if [ -f "${{ github.workspace }}/outputs/minimal_output_report.json" ]; then
+            echo "✅ Test Passed: Output report generated successfully."
+            cat ${{ github.workspace }}/outputs/minimal_output_report.json
+          else
+            echo "❌ Test Failed: Output report not found."
+            exit 1
+          fi
 
   # --- JOB 2: RELEASE ---
   release:
