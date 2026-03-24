@@ -138,7 +138,6 @@ def gbif_lookup(name):
 
     return None
 
-
 def query_gbif_species(species_name):
     try:
         # Try full name first

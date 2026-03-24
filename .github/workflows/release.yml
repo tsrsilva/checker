@@ -1,0 +1,86 @@
+# .github/workflows/release.yml
+name: CI/CD & Docker Release
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  # --- JOB 1: TEST ---
+  # Ensures the code builds and runs before we even think about a release
+  test:
+    name: Test Build & Run
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Build Local Test Image
+        run: docker build -t checker:test .
+
+      - name: Run Tool Test
+        # Validates that __main__.py is working and paths are resolved
+        run: |
+          mkdir -p data outputs
+          docker run --rm \
+            -v ${{ github.workspace }}/data:/app/data \
+            -v ${{ github.workspace }}/outputs:/app/outputs \
+            checker:test
+
+  # --- JOB 2: RELEASE ---
+  # Only runs if 'test' passes AND we are on the 'main' branch
+  release:
+    name: Version & Publish
+    needs: test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      DOCKER_HUB_USERNAME: ${{ secrets.DOCKER_HUB_USERNAME }}
+      DOCKER_HUB_TOKEN: ${{ secrets.DOCKER_HUB_TOKEN }}
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0 
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+
+      - name: Install Release Tools
+        run: |
+          python -m pip install --upgrade pip
+          pip install python-semantic-release[github]
+
+      - name: Python Semantic Release
+        # This creates the GitHub Tag and Release
+        run: python -m semantic_release publish
+
+      - name: Get New Version Tag
+        id: get_tag
+        run: |
+          NEW_TAG=$(git describe --tags --abbrev=0)
+          echo "IMAGE_TAG=$NEW_TAG" >> $GITHUB_ENV
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKER_HUB_USERNAME }}
+          password: ${{ secrets.DOCKER_HUB_TOKEN }}
+
+      - name: Build & Push Versioned Image
+        run: |
+          # Build using the real version tag
+          docker build -t ${DOCKER_HUB_USERNAME}/checker:${{ env.IMAGE_TAG }} .
+          docker push ${DOCKER_HUB_USERNAME}/checker:${{ env.IMAGE_TAG }}
+          
+          # Also update 'latest'
+          docker tag ${DOCKER_HUB_USERNAME}/checker:${{ env.IMAGE_TAG }} ${DOCKER_HUB_USERNAME}/checker:latest
+          docker push ${DOCKER_HUB_USERNAME}/checker:latest
