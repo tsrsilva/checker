@@ -11,7 +11,6 @@ on:
 
 jobs:
   # --- JOB 1: TEST ---
-  # Ensures the code builds and runs before we even think about a release
   test:
     name: Test Build & Run
     runs-on: ubuntu-latest
@@ -23,16 +22,14 @@ jobs:
         run: docker build -t checker:test .
 
       - name: Run Tool Test
-        # Validates that __main__.py is working and paths are resolved
         run: |
-          mkdir -p data outputs
+          mkdir -p data/examples outputs
           docker run --rm \
             -v ${{ github.workspace }}/data:/app/data \
             -v ${{ github.workspace }}/outputs:/app/outputs \
-            checker:test
+            checker:test --input-file examples/minimal.txt
 
   # --- JOB 2: RELEASE ---
-  # Only runs if 'test' passes AND we are on the 'main' branch
   release:
     name: Version & Publish
     needs: test
@@ -60,7 +57,6 @@ jobs:
           pip install python-semantic-release[github]
 
       - name: Python Semantic Release
-        # This creates the GitHub Tag and Release
         run: python -m semantic_release publish
 
       - name: Get New Version Tag
