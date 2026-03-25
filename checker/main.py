@@ -25,7 +25,7 @@ def load_config(config_path="configs/config.yaml"):
     return input_dir, output_dir
 
 
-def resolve_paths(config_path="configs/config.yaml", input_file=None, output_file=None):
+def resolve_base_dirs(config_path="configs/config.yaml"):
     input_dir, output_dir = load_config(config_path)
 
     if not input_dir.is_absolute():
@@ -36,26 +36,44 @@ def resolve_paths(config_path="configs/config.yaml", input_file=None, output_fil
     input_dir.mkdir(parents=True, exist_ok=True)
     output_dir.mkdir(parents=True, exist_ok=True)
 
+    return input_dir, output_dir
+
+
+def resolve_input_files(config_path="configs/config.yaml", input_file=None):
+    input_dir, output_dir = resolve_base_dirs(config_path)
+
     if input_file:
         input_path = Path(input_file)
         if not input_path.is_absolute():
             input_path = input_dir / input_path
         if not input_path.exists():
-            raise FileNotFoundError(f"Input file not found: {input_path}")
-    else:
-        candidates = sorted(input_dir.glob("*[_-]taxa.txt"))
-        if not candidates:
-            raise FileNotFoundError(f"No taxa files found in {input_dir}")
-        input_path = candidates[0]
+            raise FileNotFoundError(f"Input path not found: {input_path}")
 
+        if input_path.is_dir():
+            input_files = sorted(path for path in input_path.rglob("*.txt") if path.is_file())
+        else:
+            input_files = [input_path]
+    else:
+        input_files = sorted(path for path in input_dir.rglob("*.txt") if path.is_file())
+
+    if not input_files:
+        raise FileNotFoundError(f"No input .txt files found in {input_dir}")
+
+    return input_dir, output_dir, input_files
+
+
+def resolve_output_path(output_dir, input_dir, input_path, output_file=None):
     if output_file:
         output_path = Path(output_file)
         if not output_path.is_absolute():
             output_path = output_dir / output_path
     else:
-        output_path = output_dir / f"{input_path.stem}_output_report.json"
+        relative_parent = input_path.relative_to(input_dir).parent
+        output_path = output_dir / relative_parent / f"{input_path.stem}_output_report.json"
 
-    return input_path, output_path
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+
+    return output_path
 
 
 def read_input_species(file_path):
@@ -201,18 +219,28 @@ def generate_report(input_file, output_file):
     print(f"\n✅ Report saved to: {output_file}")
 
 
+def generate_reports(config_path="configs/config.yaml", input_file=None, output_file=None):
+    input_dir, output_dir, input_files = resolve_input_files(config_path, input_file)
+
+    if output_file and len(input_files) > 1:
+        raise ValueError("--output-file can only be used when processing a single input file")
+
+    for input_path in input_files:
+        output_path = resolve_output_path(output_dir, input_dir, input_path, output_file)
+        print(f"Processing {input_path} -> {output_path}")
+        generate_report(str(input_path), str(output_path))
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="GBIF species taxon checker")
     parser.add_argument("--config", default="configs/config.yaml", help="Path to config file")
-    parser.add_argument("--input-file", default=None, help="Input taxa file path relative to config input  directory")
-    parser.add_argument("--output-file", default=None, help="Output report file path relative to config output directory")
+    parser.add_argument("--input-file", default=None, help="Input taxa file or directory path relative to the configured input directory")
+    parser.add_argument("--output-file", default=None, help="Output report file path relative to the configured output directory for single-file runs")
 
     args = parser.parse_args()
 
-    input_file_path, output_file_path = resolve_paths(
+    generate_reports(
         config_path=args.config,
         input_file=args.input_file,
         output_file=args.output_file,
     )
-
-    generate_report(str(input_file_path), str(output_file_path))
