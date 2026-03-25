@@ -35,12 +35,12 @@ jobs:
             -v ${{ github.workspace }}/data:/app/data \
             -v ${{ github.workspace }}/outputs:/app/outputs \
             --entrypoint python \
-            checker:test -m checker --input-file examples/minimal.txt
+            checker:test -m checker --config configs/config.ci.yaml --input-file examples/minimal.txt
 
           # 4. Verify the output exists
-          if [ -f "${{ github.workspace }}/outputs/minimal_output_report.json" ]; then
+          if [ -f "${{ github.workspace }}/outputs/examples/minimal_output_report.json" ]; then
             echo "✅ Test Passed: Output report generated successfully."
-            cat ${{ github.workspace }}/outputs/minimal_output_report.json
+            cat ${{ github.workspace }}/outputs/examples/minimal_output_report.json
           else
             echo "❌ Test Failed: Output report not found."
             exit 1
@@ -52,6 +52,8 @@ jobs:
     needs: test
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       DOCKER_HUB_USERNAME: ${{ secrets.DOCKER_HUB_USERNAME }}
@@ -71,29 +73,50 @@ jobs:
       - name: Install Release Tools
         run: |
           python -m pip install --upgrade pip
-          pip install python-semantic-release[github]
+          pip install "python-semantic-release[github]>=10,<11"
 
-      - name: Python Semantic Release
-        run: python -m semantic_release publish
-
-      - name: Get New Version Tag
-        id: get_tag
+      - name: Plan Semantic Release
+        id: release_plan
         run: |
-          NEW_TAG=$(git describe --tags --abbrev=0)
-          echo "IMAGE_TAG=$NEW_TAG" >> $GITHUB_ENV
+          NEXT_TAG=$(semantic-release version --print-tag)
+          LAST_TAG=$(semantic-release version --print-last-released-tag || true)
+
+          echo "next_tag=$NEXT_TAG" >> $GITHUB_OUTPUT
+          echo "last_tag=$LAST_TAG" >> $GITHUB_OUTPUT
+
+          if [ -n "$LAST_TAG" ] && [ "$NEXT_TAG" = "$LAST_TAG" ]; then
+            echo "released=false" >> $GITHUB_OUTPUT
+            echo "No semantic release is required."
+          else
+            echo "released=true" >> $GITHUB_OUTPUT
+            echo "image_tag=$NEXT_TAG" >> $GITHUB_OUTPUT
+            echo "Releasing $NEXT_TAG"
+          fi
+
+      - name: Create Semantic Release
+        if: steps.release_plan.outputs.released == 'true'
+        run: semantic-release version
+
+      - name: Skip Docker Publish When No Release Is Needed
+        if: steps.release_plan.outputs.released != 'true'
+        run: echo "No new semantic version detected; skipping Docker publish."
 
       - name: Log in to Docker Hub
+        if: steps.release_plan.outputs.released == 'true'
         uses: docker/login-action@v2
         with:
           username: ${{ secrets.DOCKER_HUB_USERNAME }}
           password: ${{ secrets.DOCKER_HUB_TOKEN }}
 
       - name: Build & Push Versioned Image
+        if: steps.release_plan.outputs.released == 'true'
+        env:
+          IMAGE_TAG: ${{ steps.release_plan.outputs.image_tag }}
         run: |
           # Build using the real version tag
-          docker build -t ${DOCKER_HUB_USERNAME}/checker:${{ env.IMAGE_TAG }} .
-          docker push ${DOCKER_HUB_USERNAME}/checker:${{ env.IMAGE_TAG }}
+          docker build -t ${DOCKER_HUB_USERNAME}/checker:${IMAGE_TAG} .
+          docker push ${DOCKER_HUB_USERNAME}/checker:${IMAGE_TAG}
           
           # Also update 'latest'
-          docker tag ${DOCKER_HUB_USERNAME}/checker:${{ env.IMAGE_TAG }} ${DOCKER_HUB_USERNAME}/checker:latest
+          docker tag ${DOCKER_HUB_USERNAME}/checker:${IMAGE_TAG} ${DOCKER_HUB_USERNAME}/checker:latest
           docker push ${DOCKER_HUB_USERNAME}/checker:latest

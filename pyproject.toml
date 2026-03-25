@@ -1,0 +1,36 @@
+[project]
+name = "checker"
+version = "0.1.0"
+description = "GBIF taxonomy checker for species lists"
+requires-python = ">=3.11"
+
+[tool.semantic_release]
+allow_zero_version = true
+major_on_zero = false
+tag_format = "v{version}"
+commit_parser = "conventional"
+commit_message = "chore(release): {version}"
+logging_use_named_masks = true
+version_toml = ["pyproject.toml:project.version"]
+version_variables = ["checker/__init__.py:__version__"]
+
+[tool.semantic_release.changelog]
+mode = "update"
+exclude_commit_patterns = [
+  '''chore(?:\([^)]*\))?: .+''',
+  '''ci(?:\([^)]*\))?: .+''',
+  '''style(?:\([^)]*\))?: .+''',
+  '''refactor(?:\([^)]*\))?: .+''',
+  '''test(?:\([^)]*\))?: .+''',
+  '''build(?:\([^)]*\))?: .+''',
+  '''Initial [Cc]ommit.*''',
+]
+
+[tool.semantic_release.changelog.default_templates]
+changelog_file = "CHANGELOG.md"
+output_format = "md"
+
+[tool.semantic_release.remote]
+name = "origin"
+type = "github"
+token = { env = "GH_TOKEN" }
