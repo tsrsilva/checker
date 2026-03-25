@@ -4,6 +4,6 @@
 # checker/__init__.py
 from .main import generate_report, generate_reports
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 
 __all__ = ["generate_report", "generate_reports", "__version__"]
